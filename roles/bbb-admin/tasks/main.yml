@@ -1,0 +1,54 @@
+---
+- name: Get running Greenlight container names
+  ansible.builtin.command:
+    argv:
+      - docker
+      - ps
+      - --filter
+      - "name={{ greenlight_container }}"
+      - --format
+      - "{{ '{{.Names}}' }}"
+  register: gl_running
+  changed_when: false
+
+- name: Fail when Greenlight container is not running
+  ansible.builtin.fail:
+    msg: >-
+      Container '{{ greenlight_container }}' is not running.
+      Check the correct container name using: docker ps
+  when: greenlight_container not in gl_running.stdout_lines
+
+- name: Check whether Greenlight admin user exists
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ greenlight_container }}"
+      - bundle
+      - exec
+      - rails
+      - runner
+      - "puts User.exists?(email: {{ gl_admin_email | to_json }})"
+  register: gl_user_check
+  changed_when: false
+  no_log: true
+
+- name: Create Greenlight admin user
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ greenlight_container }}"
+      - bundle
+      - exec
+      - rake
+      - "admin:create[{{ gl_admin_name }},{{ gl_admin_email }},{{ gl_admin_password }}]"
+  when: gl_user_check.stdout | trim != "true"
+  register: gl_create_result
+  no_log: true
+
+- name: Show Greenlight admin result
+  ansible.builtin.debug:
+    msg: >-
+      Greenlight admin user {{ gl_admin_email }}
+      {{ 'was created' if gl_create_result is changed else 'already exists' }}.

@@ -1,0 +1,86 @@
+---
+- name: Copy bbb-install.sh script for BBB installation
+  ansible.builtin.copy:
+    src: bbb-install.sh
+    dest: /tmp/bbb-install.sh
+    mode: '0755'
+  when: >
+    bbb_version is search("jammy") or
+    bbb_version is search("noble")
+
+- name: Run bbb-install.sh
+  ansible.builtin.command: >
+    bash /tmp/bbb-install.sh
+    -v {{ bbb_version }}
+    -s {{ bbb_hostname }}
+    -e {{ bbb_email }}
+    {% if bbb_letsencrypt_enable %}-w{% endif %}
+    -g
+  args:
+    creates: /usr/share/bbb-web/WEB-INF/classes/bigbluebutton.properties
+  register: bbb_install_result
+  
+- name: Wait for services to stabilize
+  ansible.builtin.pause:
+    seconds: 30
+  when: bbb_install_result.changed
+
+- name: Ensure BigBlueButton services are running
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - nginx
+    - freeswitch
+    - redis-server
+    - bbb-apps-akka
+    - bbb-fsesl-akka
+    - bbb-graphql-actions
+    - bbb-graphql-middleware
+    - bbb-graphql-server
+    - bbb-webrtc-sfu
+    - bbb-webrtc-recorder
+    - etherpad
+    - bbb-web
+    - bbb-pads
+    - bbb-export-annotations
+    - bbb-rap-caption-inbox
+    - bbb-rap-resque-worker
+    - bbb-rap-starter
+
+- name: Check whether Greenlight container exists
+  ansible.builtin.command:
+    argv:
+      - docker
+      - inspect
+      - greenlight-v3
+  register: greenlight_check
+  changed_when: false
+  failed_when: false
+
+- name: Install or update Greenlight
+  ansible.builtin.command:
+    argv:
+      - bash
+      - /tmp/bbb-install.sh
+      - -v
+      - "{{ bbb_version }}"
+      - -s
+      - "{{ bbb_hostname }}"
+      - -e
+      - "{{ bbb_email }}"
+      - -g
+  when: greenlight_check.rc != 0
+  register: greenlight_install
+
+- name: Ensure Greenlight resolves BBB hostname to public IP
+  ansible.builtin.blockinfile:
+    path: /root/greenlight-v3/docker-compose.yml
+    insertafter: '^    env_file: .env$'
+    marker: "    # {mark} ANSIBLE MANAGED GREENLIGHT BBB HOST"
+    block: |2
+          extra_hosts:
+            - "{{ bbb_hostname }}:{{ ansible_host | default(ansible_default_ipv4.address) }}"
+  when: greenlight_check.rc == 0 or greenlight_install.changed | default(false)
+  notify: Restart Greenlight

@@ -1,0 +1,34 @@
+# BigBlueButton HTML5 Client Configuration Override
+# This file sets Persian (Farsi) as the default language
+# Location: /etc/bigbluebutton/bbb-html5.yml
+
+public:
+  app:
+    # Client title in Persian
+    clientTitle: "{{ bbb_client_title | default('جلسات آنلاین') }}"
+
+    # Default application settings
+    defaultSettings:
+      application:
+        # Set Persian as the default locale
+        # Valid values: fa_IR, en, de, fr, es, etc.
+        locale: "{{ bbb_default_locale | default('fa_IR') }}"
+
+        # Override browser locale - force Persian
+        overrideLocale: "{{ bbb_override_locale | default('fa_IR') }}"
+
+        # RTL (Right-to-Left) support is automatic for Persian
+        # No additional configuration needed
+
+      audio:
+        # Audio alerts in Persian context
+        muteUnmuteAudioAlerts: true
+
+    # Enable audio captions (optional)
+    audioCaptions:
+      enabled: false
+
+  # Kurento / WebRTC settings (keep defaults or customize as needed)
+  kurento:
+    enableScreensharing: true
+    enableVideo: true

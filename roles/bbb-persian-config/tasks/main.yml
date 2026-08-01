@@ -1,0 +1,136 @@
+---
+- name: Ensure /etc/bigbluebutton directory exists
+  ansible.builtin.file:
+    path: /etc/bigbluebutton
+    state: directory
+    mode: '0755'
+
+- name: Create bbb-html5.yml override for Persian locale
+  ansible.builtin.template:
+    src: bbb-html5.yml.j2
+    dest: /etc/bigbluebutton/bbb-html5.yml
+    mode: '0644'
+    owner: root
+    group: root
+  notify: Restart BigBlueButton
+
+- name: Create bbb-web.properties override
+  ansible.builtin.template:
+    src: bbb-web.properties.j2
+    dest: /etc/bigbluebutton/bbb-web.properties
+    mode: '0644'
+  notify: Restart BigBlueButton
+
+- name: Set Greenlight default locale to Persian
+  ansible.builtin.lineinfile:
+    path: /root/greenlight-v3/.env
+    regexp: '^DEFAULT_LOCALE='
+    line: "DEFAULT_LOCALE={{ greenlight_default_locale | default('fa_IR') }}"
+    state: present
+    create: false
+    mode: '0600'
+  notify: Restart Greenlight
+
+- name: Set Persian welcome message in bbb-web.properties
+  ansible.builtin.lineinfile:
+    path: /etc/bigbluebutton/bbb-web.properties
+    line: "defaultWelcomeMessage={{ bbb_welcome_message }}"
+    state: present
+    create: true
+    mode: '0644'
+  when: bbb_welcome_message is defined
+
+- name: Set Persian welcome message footer
+  ansible.builtin.lineinfile:
+    path: /etc/bigbluebutton/bbb-web.properties
+    line: "defaultWelcomeMessageFooter={{ bbb_welcome_message_footer }}"
+    state: present
+  when: bbb_welcome_message_footer is defined
+
+- name: Install Persian/Arabic fonts
+  ansible.builtin.apt:
+    name:
+      - fonts-noto-core
+      - fonts-noto-extra
+      - fonts-noto-ui-core
+    state: present
+
+- name: Download Vazirmatn font (modern Persian font)
+  ansible.builtin.get_url:
+    url: "https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip"
+    dest: /tmp/vazirmatn.zip
+    mode: '0644'
+
+- name: Ensure Vazirmatn directory exists
+  ansible.builtin.file:
+    path: /usr/share/fonts/vazirmatn
+    state: directory
+    mode: '0755'
+
+- name: Extract Vazirmatn font
+  ansible.builtin.unarchive:
+    src: /tmp/vazirmatn.zip
+    dest: /usr/share/fonts/vazirmatn
+    remote_src: true
+
+- name: Ensure unzip is installed
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+
+- name: Update font cache
+  ansible.builtin.command: fc-cache -fv
+  changed_when: true
+
+- name: Check if Persian locale file exists
+  ansible.builtin.stat:
+    path: /usr/share/bigbluebutton/html5-client/locales/fa_IR.json
+  register: fa_locale_file
+
+- name: Download latest Persian locale from upstream (if needed)
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/bigbluebutton/bigbluebutton/v3.0.x-release/bigbluebutton-html5/public/locales/fa_IR.json"
+    dest: /usr/share/bigbluebutton/html5-client/locales/fa_IR.json
+    mode: '0644'
+    backup: true
+  when: not fa_locale_file.stat.exists
+
+- name: Configure TURN server
+  ansible.builtin.template:
+    src: turn-stun-servers.xml.j2
+    dest: /etc/bigbluebutton/turn-stun-servers.xml
+    mode: '0644'
+  when: bbb_turn_server.enabled | default(false)
+  notify: Restart BigBlueButton
+
+- name: Configure local coturn shared secret
+  ansible.builtin.lineinfile:
+    path: /etc/turnserver.conf
+    regexp: '^\s*static-auth-secret='
+    line: "static-auth-secret={{ bbb_turn_server.secret }}"
+    mode: '0640'
+  when:
+    - bbb_turn_server.enabled | default(false)
+    - bbb_turn_server.manage_local | default(false)
+  notify: Restart coturn
+  no_log: true
+
+- name: Ensure proper ownership of config files
+  ansible.builtin.file:
+    path: /etc/bigbluebutton/bbb-html5.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Restart BigBlueButton to apply all changes
+  ansible.builtin.command: bbb-conf --restart
+  changed_when: true
+
+- name: Verify all services are running
+  ansible.builtin.command: bbb-conf --status
+  register: bbb_status
+  changed_when: false
+
+- name: Display service status
+  ansible.builtin.debug:
+    var: bbb_status.stdout_lines

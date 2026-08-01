@@ -1,0 +1,93 @@
+---
+- name: Remove Docker CE packages that conflict with Ubuntu docker.io
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: absent
+    purge: false
+
+- name: Remove Docker CE repository
+  ansible.builtin.file:
+    path: "/etc/apt/sources.list.d/{{ item }}"
+    state: absent
+  loop:
+    - docker.list
+    - docker.sources
+
+- name: Add custom Ubuntu mirror
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb http://mirror.arvancloud.ir/ubuntu
+      {{ ansible_distribution_release }}
+      main restricted universe multiverse
+    filename: arvancloud
+    state: present
+
+- name: Add custom Ubuntu updates repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb http://mirror.arvancloud.ir/ubuntu
+      {{ ansible_distribution_release }}-updates
+      main restricted universe multiverse
+    filename: arvancloud
+    state: present
+
+- name: Add custom Ubuntu security repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb http://mirror.arvancloud.ir/ubuntu
+      {{ ansible_distribution_release }}-security
+      main restricted universe multiverse
+    filename: arvancloud
+    state: present
+
+- name: Refresh apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+
+- name: Install Docker from custom Ubuntu repository
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - containerd
+    state: present
+
+- name: Install Docker Compose
+  ansible.builtin.apt:
+    name: docker-compose
+    state: present
+
+- name: Configure Docker daemon
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {
+        "insecure-registries": [
+          "https://docker.arvancloud.ir"
+        ],
+        "registry-mirrors": [
+          "https://docker.arvancloud.ir"
+        ]
+      }
+  notify: Restart Docker
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add Ansible user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  when: ansible_user is defined

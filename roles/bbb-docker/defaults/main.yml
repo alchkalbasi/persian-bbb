@@ -1,0 +1,4 @@
+---
+docker_mirror_repo: >-
+  deb http://mirror.arvancloud.ir/ubuntu
+  {{ ansible_distribution_release }} universe

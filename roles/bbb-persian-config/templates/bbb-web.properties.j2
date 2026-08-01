@@ -1,0 +1,17 @@
+# BigBlueButton Web Configuration Override
+# Location: /etc/bigbluebutton/bbb-web.properties
+
+# Server URL
+bigbluebutton.web.serverURL=https://{{ bbb_hostname }}
+
+# Persian Welcome Message (UTF-8)
+# Note: These will be overridden by the tasks if bbb_welcome_message is defined
+defaultWelcomeMessage={{ bbb_welcome_message | default('به <b>%%CONFNAME%%</b> خوش آمدید!<br>برای راهنمایی در استفاده از BigBlueButton، ویدیوهای آموزشی کوتاه را مشاهده کنید.<br>برای پیوستن به پل صوتی، روی دکمه تلفن کلیک کنید. از هدست استفاده کنید تا از ایجاد نویز پس‌زمینه برای دیگران جلوگیری کنید.') }}
+
+defaultWelcomeMessageFooter={{ bbb_welcome_message_footer | default('این سرور BigBlueButton را اجرا می‌کند.') }}
+
+# Guest policy (ALWAYS_ACCEPT, ALWAYS_DENY, ASK_MODERATOR)
+defaultGuestPolicy=ALWAYS_ACCEPT
+
+# Allow requests without session (set to false for production)
+allowRequestsWithoutSession=false

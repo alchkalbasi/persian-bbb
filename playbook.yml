@@ -1,0 +1,55 @@
+---
+- name: Deploy BigBlueButton with Persian Language Support
+  hosts: bbb_servers
+  gather_facts: true
+  become: true
+
+  vars:
+    # BigBlueButton requirements
+    bbb_min_memory_gb: 8
+    bbb_min_cpu_cores: 4
+
+  pre_tasks:
+    - name: Check minimum system requirements
+      ansible.builtin.fail:
+        msg: "Server does not meet minimum requirements: {{ (ansible_memtotal_mb / 1024) | round(1) }}GB RAM (need {{ bbb_min_memory_gb }}GB), {{ ansible_processor_vcpus }} CPUs (need {{ bbb_min_cpu_cores }})"
+      when: >
+        (ansible_memtotal_mb < (bbb_min_memory_gb * 900)) or
+        (ansible_processor_vcpus | int) < bbb_min_cpu_cores
+
+    - name: Check Ubuntu version compatibility
+      ansible.builtin.fail:
+        msg: "Unsupported Ubuntu version: {{ ansible_distribution }} {{ ansible_distribution_version }}. BBB 3.0 requires Ubuntu 22.04, BBB 4.0 requires Ubuntu 24.04."
+      when: >
+        (bbb_version is search("jammy") and ansible_distribution_version is not version("22.04", "==")) or
+        (bbb_version is search("noble") and ansible_distribution_version is not version("24.04", "=="))
+
+  roles:
+    - role: bbb-prerequisites
+    - role: bbb-docker
+    - role: bbb-install
+    - role: bbb-persian-config
+    - role: bbb-admin
+
+  post_tasks:
+    - name: Verify BigBlueButton installation
+      ansible.builtin.command: bbb-conf --check
+      register: bbb_check
+      changed_when: false
+
+    - name: Display BBB status
+      ansible.builtin.debug:
+        var: bbb_check.stdout_lines
+
+    - name: Display BBB secret
+      ansible.builtin.command: bbb-conf --secret
+      register: bbb_secret
+      changed_when: false
+
+    - name: Show access information
+      ansible.builtin.debug:
+        msg:
+          - "BigBlueButton URL: https://{{ bbb_hostname }}"
+          - "API Endpoint: {{ bbb_secret.stdout | regex_search('URL:.*') }}"
+          - "Secret: {{ bbb_secret.stdout | regex_search('Secret:.*') }}"
+          - "Default Language: Persian (fa_IR)"

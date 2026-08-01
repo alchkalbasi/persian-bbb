@@ -1,0 +1,40 @@
+---
+# BigBlueButton Configuration
+bbb_version: "jammy-300"  # For BBB 3.0 on Ubuntu 22.04
+# bbb_version: "noble-400"  # For BBB 4.0 on Ubuntu 24.04 (when released)
+
+# Server settings
+bbb_hostname: "bbb.domain.ir"
+bbb_email: "example@gmail.com"
+
+# Persian (Farsi) Language Configuration
+bbb_default_locale: "fa_IR"
+bbb_override_locale: "fa_IR"
+greenlight_default_locale: "fa_IR"
+
+# Welcome messages in Persian (UTF-8 encoded)
+bbb_welcome_message: "به **%%CONFNAME%%** خوش آمدید!<br>برای راهنمایی در استفاده از BigBlueButton، ویدیوهای آموزشی کوتاه را مشاهده کنید.<br>برای پیوستن به پل صوتی، روی دکمه تلفن کلیک کنید. برای جلوگیری از ایجاد نویز پس‌زمینه برای دیگران، از هدست استفاده کنید."
+bbb_welcome_message_footer: "این سرور BigBlueButton را اجرا می‌کند."
+
+# Client title in Persian
+bbb_client_title: "جلسات آنلاین"
+
+# TURN Server (optional but recommended for production)
+bbb_turn_server:
+  enabled: true
+  manage_local: true
+  server: "turn.domain.ir"
+  secret: "hardSECRET123456Aa!@#"
+  port: 443
+
+# SSL / Let's Encrypt
+bbb_letsencrypt_enable: true
+
+# System locale
+bbb_system_locale: "fa_IR.UTF-8"
+
+# admin greenlight
+greenlight_container: greenlight-v3
+gl_admin_name: admin
+gl_admin_email: "example@gmail.com"
+gl_admin_password: hardSECRET123456Aa!@#

@@ -1,0 +1,6 @@
+---
+- name: Restart Greenlight
+  ansible.builtin.shell: |
+    docker-compose -f /root/greenlight-v3/docker-compose.yml rm -sf greenlight-v3
+    docker-compose -f /root/greenlight-v3/docker-compose.yml up -d greenlight-v3
+  changed_when: true

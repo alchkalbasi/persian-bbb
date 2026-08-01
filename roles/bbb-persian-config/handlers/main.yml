@@ -1,0 +1,20 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for bbb-persian-config
+
+- name: Restart BigBlueButton
+  ansible.builtin.command: bbb-conf --restart
+  changed_when: true
+  listen: "Restart BigBlueButton"
+
+- name: Restart coturn
+  ansible.builtin.service:
+    name: coturn
+    state: restarted
+
+- name: Restart Greenlight
+  ansible.builtin.shell: |
+    docker-compose -f /root/greenlight-v3/docker-compose.yml rm -sf greenlight-v3
+    docker-compose -f /root/greenlight-v3/docker-compose.yml up -d greenlight-v3
+  changed_when: true
+  listen: "Restart Greenlight"

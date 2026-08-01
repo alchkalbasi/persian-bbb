@@ -1,0 +1,65 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - net-tools
+    state: present
+
+- name: Set system hostname
+  ansible.builtin.hostname:
+    name: "{{ bbb_hostname }}"
+  when: bbb_hostname is defined
+
+- name: Add hostname to /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.1.1 {{ bbb_hostname }}"
+    state: present
+  when: bbb_hostname is defined
+
+# - name: Configure system locale for Persian
+#   ansible.builtin.command: >
+#     locale-gen {{ bbb_system_locale }}
+#   changed_when: true
+#   when: bbb_system_locale is defined
+
+# - name: Set default system locale
+#   ansible.builtin.command: >
+#     update-locale LANG={{ bbb_system_locale }} LC_ALL={{ bbb_system_locale }}
+#   changed_when: true
+#   when: bbb_system_locale is defined
+
+- name: Ensure required ports are open (UFW)
+  ansible.builtin.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "22"
+    - "80"
+    - "443"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Allow UDP ports for media (FreeSWITCH, mediasoup)
+  ansible.builtin.ufw:
+    rule: allow
+    port: "16384:32768"
+    proto: udp
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Enable UFW if not already enabled
+  ansible.builtin.ufw:
+    state: enabled
+    policy: deny
+  when: ansible_facts['os_family'] == "Debian"
